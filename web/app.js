@@ -119,7 +119,8 @@
     const list = $("#list"); list.innerHTML = "";
     const groups = new Map();
     for (const it of state.items) { const k = it.topic || UNSORTED; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(it); }
-    const keys = [...groups.keys()].sort((a, b) => (a === UNSORTED) - (b === UNSORTED) || groups.get(b).length - groups.get(a).length || a.localeCompare(b));
+    // Alphabetical, Unsorted last. Not by size: a group that shrinks after an action must not jump elsewhere.
+    const keys = [...groups.keys()].sort((a, b) => (a === UNSORTED) - (b === UNSORTED) || a.localeCompare(b, undefined, { sensitivity: "base" }));
     let n = 0;
     for (const topic of keys) {
       const items = groups.get(topic);
