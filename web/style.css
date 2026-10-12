@@ -241,3 +241,25 @@ svg { width: 16px; height: 16px; flex-shrink: 0; }
 .sweep-status { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font-size: 12px; }
 .sweep-status #sweep-elapsed { font-size: 11.5px; color: var(--ink-3); }
 .block-head .sweep-status + .seg { margin-left: 10px; }
+
+/* desktop: inbox in the main column, snoozed and closed beside it */
+.foot-keys { display: none; }
+.foot kbd { font-family: var(--font-mono); font-size: 10.5px; padding: 1px 5px; border-radius: 4px; background: var(--inset); box-shadow: var(--shadow-hairline); margin: 0 2px 0 6px; }
+.foot kbd:first-child { margin-left: 0; }
+@media (min-width: 900px) {
+  .app { max-width: 1180px; padding: 0 32px 40px; }
+  .top { padding: 28px 0 20px; }
+  .columns { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr); gap: 28px; align-items: start; border-top: 1px dashed var(--line-strong); }
+  .col-main .block { border-top: 0; padding-top: 22px; }
+  .col-side { border-left: 1px dashed var(--line-strong); padding-left: 28px; }
+  .col-side .block:first-child { border-top: 0; padding-top: 22px; }
+  .deck { height: 400px; }
+  .card h2 { font-size: 19px; }
+  .foot-touch { display: none; } .foot-keys { display: inline; }
+}
+@media (min-width: 1280px) {
+  .columns { grid-template-columns: minmax(0, 1.5fr) minmax(360px, 1fr); gap: 36px; }
+  .col-side { padding-left: 36px; }
+  .deck { height: 440px; }
+}
+@media (hover: hover) { .card { cursor: grab; } }

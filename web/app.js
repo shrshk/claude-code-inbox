@@ -354,6 +354,19 @@
     load();
   });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && state.loaded) load({ quiet: true }); });
+  // Desktop keyboard: arrows act on the top card, Z undoes, L toggles the list, R refreshes.
+  document.addEventListener("keydown", (e) => {
+    if (e.target.matches("input, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
+    const top = state.items[0];
+    const card = $("#deck .card:last-child");
+    const go = (action) => { if (!top || state.view !== "cards") return; e.preventDefault(); if (card) flyOut(card, action); act(top, action); };
+    if (e.key === "ArrowRight") go("done");
+    else if (e.key === "ArrowLeft") go("dismiss");
+    else if (e.key === "ArrowUp") go("snooze");
+    else if (e.key === "z" || e.key === "Z") { e.preventDefault(); undo(); }
+    else if (e.key === "l" || e.key === "L") { state.view = state.view === "list" ? "cards" : "list"; try { localStorage.setItem("ccinboxView", state.view); } catch (err) { /* ignore */ } render(); }
+    else if (e.key === "r" || e.key === "R") runSweep();
+  });
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
     // When an updated worker takes control, reload once so the page runs the new shell files.
