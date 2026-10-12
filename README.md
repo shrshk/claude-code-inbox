@@ -97,17 +97,24 @@ With Tailscale on both devices it works from anywhere: set `CCINBOX_HOST` to the
 
 Never expose the port to the internet. The token is a single shared secret with no rate limiting.
 
+## When do items show up?
+
+When a session ends. The hook worker extracts that session, then sweeps any other transcript that has
+been idle for 10 minutes, so long-running sessions are covered too. Tap the refresh button in the app
+(or reopen it; it refreshes when it comes to the foreground) to pull the new items in. That is the
+whole loop; no timer is needed.
+
 ## Scheduling (launchd)
 
-`ccinbox install-launchd` renders three agents into `~/Library/LaunchAgents/` with absolute paths and the `CCINBOX_*` variables from your environment. Load the ones you want with `launchctl bootstrap gui/$(id -u) <plist>`.
+Optional. `ccinbox install-launchd` renders three agents into `~/Library/LaunchAgents/` with absolute paths and the `CCINBOX_*` variables from your environment. Load the ones you want with `launchctl bootstrap gui/$(id -u) <plist>`.
 
 | Agent | What | When |
 |---|---|---|
 | `com.ccinbox.serve` | API + PWA | always (KeepAlive) |
-| `com.ccinbox.sweep` | backstop extraction | every 15 min |
+| `com.ccinbox.sweep` | extraction on a timer, for sessions that never end | every 15 min |
 | `com.ccinbox.digest` | ntfy push of open items | weekdays 09:00 |
 
-**Known issue.** On at least one Mac, `claude -p` started from a launchd agent authenticates, opens its API connections, then blocks forever in a file `open()` (0% CPU), while the same command works from any terminal-spawned process. If `~/.cc-inbox/sweep.log` shows only timeouts, leave the sweep agent unloaded: the SessionEnd hook already sweeps idle transcripts, so you lose nothing but the timer. Details and what was ruled out are in [docs/launchd-hang.md](docs/launchd-hang.md). A fix or a confirmed cause would be very welcome.
+**Known issue.** On at least one Mac, `claude -p` started from a launchd agent authenticates, opens its API connections, then blocks forever in a file `open()` (0% CPU), while the same command works from any terminal-spawned process. If `~/.cc-inbox/sweep.log` shows only timeouts, leave the sweep agent unloaded: the SessionEnd hook already sweeps idle transcripts, so you lose nothing but the timer. The author runs it this way. Details and what was ruled out are in [docs/launchd-hang.md](docs/launchd-hang.md). A fix or a confirmed cause would be very welcome.
 
 ## Notifications
 
