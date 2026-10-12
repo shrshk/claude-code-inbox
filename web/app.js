@@ -124,7 +124,15 @@
     for (const topic of keys) {
       const items = groups.get(topic);
       const g = document.createElement("div"); g.className = "group" + (collapsed.has(topic) ? " collapsed" : "");
-      g.innerHTML = `<button type="button" class="group-head" aria-expanded="${!collapsed.has(topic)}"><span class="topic">${esc(topic)}</span><span class="count">${items.length} item${items.length === 1 ? "" : "s"}</span><span class="chev">${icon("i-chev")}</span></button><div class="group-body"><div class="group-rows"></div></div>`;
+      g.innerHTML = `<div class="group-head-row">
+          <button type="button" class="group-head" aria-expanded="${!collapsed.has(topic)}"><span class="topic">${esc(topic)}</span><span class="count">${items.length} item${items.length === 1 ? "" : "s"}</span><span class="chev">${icon("i-chev")}</span></button>
+          <span class="group-actions">
+            <button type="button" class="gact done" data-gact="done" title="Mark all ${items.length} done">${icon("i-check")}<span>All done</span></button>
+            <button type="button" class="gact snooze" data-gact="snooze" title="Snooze all ${items.length}">${icon("i-clock")}</button>
+            <button type="button" class="gact dismiss" data-gact="dismiss" title="Dismiss all ${items.length}">${icon("i-x")}</button>
+          </span>
+        </div><div class="group-body"><div class="group-rows"></div></div>`;
+      g.querySelectorAll("[data-gact]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); actGroup(topic, items, b.dataset.gact); }));
       g.querySelector(".group-head").addEventListener("click", () => {
         const now = g.classList.toggle("collapsed");
         g.querySelector(".group-head").setAttribute("aria-expanded", String(!now));
@@ -272,12 +280,31 @@
     } finally { state.busy = false; }
   }
 
+  // Act on a whole topic group at once; one history entry, one undo.
+  async function actGroup(topic, items, action) {
+    if (state.busy || !items.length) return;
+    state.busy = true;
+    const ids = items.map((it) => it.id);
+    state.items = state.items.filter((x) => !ids.includes(x.id));
+    render();
+    try {
+      const res = await api("/api/bulk", { method: "POST", body: JSON.stringify({ action, ids }) });
+      state.history.push({ ids, action });
+      if (action === "snooze") { state.snoozed = [...res.updated, ...state.snoozed]; render(); }
+      toast(`${label(action)} · ${ids.length} in ${topic}`);
+    } catch (err) {
+      await load({ quiet: true });
+      toast("Failed: " + err.message, false);
+    } finally { state.busy = false; }
+  }
+
   async function undo() {
     const last = state.history.pop();
     hideToast();
     if (!last) return;
     try {
-      await api(`/api/items/${last.item.id}`, { method: "POST", body: JSON.stringify({ action: "undo" }) });
+      if (last.ids) await api("/api/bulk", { method: "POST", body: JSON.stringify({ action: "undo", ids: last.ids }) });
+      else await api(`/api/items/${last.item.id}`, { method: "POST", body: JSON.stringify({ action: "undo" }) });
       await load({ quiet: true });
     } catch (err) { toast("Undo failed: " + err.message, false); }
   }

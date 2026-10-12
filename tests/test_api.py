@@ -35,6 +35,21 @@ def test_items_and_actions(env, conn):
     assert client.get("/").status_code == 200 and "Claude Code Inbox" in client.get("/").text
 
 
+def test_bulk_actions_and_undo(env, conn):
+    ids = [db.insert_item(conn, "demo", f"Item {i}", topic="T") for i in range(3)]
+    client = make_client()
+    r = client.post("/api/bulk", json={"action": "snooze", "ids": ids + [999]})
+    assert r.status_code == 200
+    body = r.json()
+    assert [u["id"] for u in body["updated"]] == ids and body["missing"] == [999]
+    assert all(u["status"] == "snoozed" for u in body["updated"])
+    assert client.get("/api/items").json()["counts"] == {"open": 0, "snoozed": 3, "resolved": 0}
+    r = client.post("/api/bulk", json={"action": "undo", "ids": ids})
+    assert [u["status"] for u in r.json()["updated"]] == ["open"] * 3
+    assert client.post("/api/bulk", json={"action": "nuke", "ids": ids}).status_code == 400
+    assert client.post("/api/bulk", json={"action": "done", "ids": []}).status_code == 400
+
+
 def test_token_required_when_set(env, monkeypatch):
     monkeypatch.setenv("CCINBOX_TOKEN", "s3cret")
     importlib.reload(config)

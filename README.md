@@ -18,7 +18,7 @@ Every session leaves loose ends: "merge this after the migration", "ask the revi
   <img src="docs/screens/desktop-dark.png" width="720" alt="Desktop layout">
 </p>
 
-On a phone it is a card stack you swipe. On a laptop the inbox sits beside the snoozed and closed lists, and the arrow keys act on the top card (→ done, ← dismiss, ↑ snooze, Z undo, L list, R refresh).
+On a phone it is a card stack you swipe. On a laptop the inbox sits beside the snoozed and closed lists, and the arrow keys act on the top card (→ done, ← dismiss, ↑ snooze, Z undo, L list, R refresh). The list view groups items by topic; each group header has Done, Snooze and Dismiss for the whole group, with a single Undo.
 
 Everything runs on your Mac. It uses your existing Claude Code login, so there is no API key to manage, and nothing leaves the machine except the trimmed transcript sent to Claude for extraction.
 
@@ -40,7 +40,7 @@ FastAPI + PWA on your phone        ntfy digest (optional)
 - **Extraction.** The worker keeps user turns, assistant text, one line per tool call and the first 300 characters of each result, drops subagent chatter and injected context, trims to 80k characters (20% head, 80% tail, since follow-ups cluster at the end), and asks Claude for at most five items, precision over recall. Each item gets a 1–3 word **topic** such as "Payments" or "Code reviews"; the model is shown the project's open items and their topics so it reuses labels instead of inventing near-duplicates.
 - **Dedupe and auto-resolve.** The prompt lists open items; the model never re-adds one and may return `resolved_ids` for items the transcript shows were completed. Ids are validated against that project's open items, and a normalised-title fingerprint catches rewordings.
 - **Idempotent.** A transcript is processed once per modification time. Failed extractions are retried on the next sweep. One extraction runs at a time.
-- **Inbox.** Cards for triage, or a list grouped by topic with collapsible groups and inline actions. Undo on every action. Snoozed items and items closed by later sessions have their own sections.
+- **Inbox.** Cards for triage, or a list grouped by topic with collapsible groups, inline actions, and group actions (mark a whole topic done, snooze it, or dismiss it in one tap). Undo on every action, including group ones. Snoozed items and items closed by later sessions have their own sections.
 
 ## Requirements
 

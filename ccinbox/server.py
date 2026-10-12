@@ -22,6 +22,12 @@ class ActionBody(BaseModel):
     until: str | None = None
 
 
+class BulkBody(BaseModel):
+    action: str
+    ids: list[int]
+    until: str | None = None
+
+
 def _authorized(request: Request) -> bool:
     token = config.TOKEN
     if not token:
@@ -141,6 +147,25 @@ def create_app(sweeper: SweepRunner | None = None) -> FastAPI:
     @app.get("/api/sweep")
     def sweep_state():
         return runner.state()
+
+    @app.post("/api/bulk")
+    def act_bulk(body: BulkBody):
+        if body.action not in db.ACTIONS:
+            raise HTTPException(400, f"unknown action {body.action!r}")
+        if not body.ids or len(body.ids) > 200:
+            raise HTTPException(400, "ids must hold 1-200 item ids")
+        conn = db.connect()
+        try:
+            updated, missing = [], []
+            for item_id in body.ids:
+                try:
+                    row = db.apply_action(conn, item_id, body.action, body.until)
+                except ValueError as exc:
+                    raise HTTPException(400, str(exc)) from exc
+                (updated if row is not None else missing).append(item_id if row is None else db.row_to_dict(row))
+        finally:
+            conn.close()
+        return {"updated": updated, "missing": missing}
 
     @app.get("/api/sessions")
     def list_sessions(limit: int = 50):
