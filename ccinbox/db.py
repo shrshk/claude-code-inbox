@@ -234,6 +234,16 @@ def apply_action(conn: sqlite3.Connection, item_id: int, action: str, until: str
     return get_item(conn, item_id)
 
 
+def append_note(conn: sqlite3.Connection, item_id: int, note: str) -> bool:
+    """Add a short note to an item's details unless it is already there."""
+    row = get_item(conn, item_id)
+    if row is None or note in (row["details"] or ""):
+        return False
+    details = (row["details"] + " " if row["details"] else "") + note
+    conn.execute("UPDATE items SET details = ?, updated_at = ? WHERE id = ?", (details[:1000], now_iso(), item_id))
+    return True
+
+
 def auto_resolve(conn: sqlite3.Connection, ids: list[int], session_id: str) -> list[int]:
     done = []
     now = now_iso()

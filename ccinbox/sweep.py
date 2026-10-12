@@ -17,6 +17,12 @@ from ccinbox.extract import Extractor, ProcessResult, process_session
 log = logging.getLogger("ccinbox.sweep")
 
 
+class SweepResults(list):
+    """The per-transcript results, plus the PR verification result when that pass ran."""
+
+    verify = None
+
+
 def encode_project_dir(path: str | Path) -> str:
     """Claude Code names ``~/.claude/projects/<dir>`` after the cwd with ``/`` replaced by ``-``."""
     return re.sub(r"[^A-Za-z0-9-]", "-", str(Path(path).expanduser().resolve()))
@@ -59,8 +65,9 @@ def sweep(
     force: bool = False,
     debounce_sec: int = 0,
     extractor: Extractor | None = None,
-) -> list[ProcessResult]:
-    results: list[ProcessResult] = []
+    verify_prs: bool = False,
+) -> SweepResults:
+    results = SweepResults()
     processed = 0
     for path in candidate_transcripts(since_days, idle_min):
         if limit is not None and processed >= limit:
@@ -69,6 +76,15 @@ def sweep(
         results.append(res)
         if res.status in ("processed", "failed"):
             processed += 1
+    if verify_prs:
+        from ccinbox import db
+        from ccinbox.verify import verify
+
+        conn = db.connect()
+        try:
+            results.verify = verify(conn)
+        finally:
+            conn.close()
     log.info(
         "sweep_done candidates=%d processed=%d failed=%d",
         len(results),
@@ -79,7 +95,9 @@ def sweep(
 
 
 def summary(results: list[ProcessResult]) -> dict:
+    v = getattr(results, "verify", None)
     return {
+        "verify": v.as_dict() if v else None,
         "candidates": len(results),
         "processed": sum(r.status == "processed" for r in results),
         "failed": sum(r.status == "failed" for r in results),

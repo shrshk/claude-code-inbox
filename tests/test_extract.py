@@ -32,7 +32,7 @@ def test_process_adds_items_and_is_idempotent_on_mtime(env, transcript_path, con
     assert len(ex.calls) == 1
     assert process_session(transcript_path, ex, conn=conn, force=True).status == "processed"
     assert len(ex.calls) == 2
-    assert "[%d] (Balance tests) Open the PR for DEMO-42" % rows[0]["id"] in ex.calls[1]
+    assert "[%d] (demo-backend · Balance tests) Open the PR for DEMO-42" % rows[0]["id"] in ex.calls[1]
     assert len(db.open_items(conn, "demo-backend")) == 2  # dedupe held on the rerun
     sess = db.get_session(conn, "11111111-2222-3333-4444-555555555555")
     assert sess["items_added"] == 0 and sess["transcript_mtime"] == os.path.getmtime(transcript_path)
@@ -41,10 +41,14 @@ def test_process_adds_items_and_is_idempotent_on_mtime(env, transcript_path, con
 def test_resolved_ids_are_validated(env, transcript_path, conn):
     mine = db.insert_item(conn, "demo-backend", "Run the qa migration")
     other = db.insert_item(conn, "other-project", "Unrelated")
-    res = process_session(transcript_path, fake([], resolved=[mine, other, 4242]), conn=conn)
-    assert res.status == "processed" and res.items_resolved == [mine]
-    assert db.get_item(conn, mine)["status"] == "auto_resolved"
-    assert db.get_item(conn, other)["status"] == "open"
+    done = db.insert_item(conn, "other-project", "Already done")
+    db.apply_action(conn, done, "done")
+    ex = fake([], resolved=[mine, other, done, 4242])
+    res = process_session(transcript_path, ex, conn=conn)
+    assert res.status == "processed" and res.items_resolved == [mine, other]  # any project, but only open items
+    assert db.get_item(conn, mine)["status"] == "auto_resolved" and db.get_item(conn, other)["status"] == "auto_resolved"
+    assert db.get_item(conn, done)["status"] == "done"
+    assert "(other-project · no topic) Unrelated" in ex.calls[0] and "Already done" not in ex.calls[0]
 
 
 def test_reprocess_after_change_and_debounce(env, transcript_path, conn):

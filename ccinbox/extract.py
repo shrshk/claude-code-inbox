@@ -80,13 +80,15 @@ workstream the item belongs to (for example "Centrifugo", "Snapshots v2", "Code 
 reuse a topic from the open items list below whenever one fits, so related items group together.
 Return at most 5 items, best first.
 
-The project's already-open items are listed below. Never re-add one, even reworded. If the transcript clearly shows
-one was completed or no longer applies, put its id in "resolved_ids". Use only ids from that list.
+The user's already-open items are listed below, across all projects (the current project first). Never re-add one,
+even reworded. If this transcript clearly shows one was completed or no longer applies (merged, deployed, answered,
+decided, abandoned), put its id in "resolved_ids", whatever project it belongs to. Use only ids from that list.
 """
 
 
 def build_prompt(t: transcript_mod.Transcript, open_items) -> str:
-    listing = "\n".join(f"- [{r['id']}] ({r['topic'] or 'no topic'}) {r['title']}" for r in open_items) or "(none)"
+    rows = sorted(open_items, key=lambda r: (r["project"] != t.project, r["project"], r["id"]))
+    listing = "\n".join(f"- [{r['id']}] ({r['project']} · {r['topic'] or 'no topic'}) {r['title']}" for r in rows) or "(none)"
     return (
         PROMPT_HEADER
         + "\nOpen items:\n"
@@ -298,7 +300,7 @@ def process_session(
                 res.status = "skipped_short"
                 return res
 
-            open_items = db.open_items(conn, t.project)
+            open_items = db.open_items(conn)  # every project: a session often finishes work filed elsewhere
             prompt = build_prompt(t, open_items)
             try:
                 resp = _coerce((extractor or run_claude)(prompt))

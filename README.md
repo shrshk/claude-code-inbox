@@ -38,7 +38,8 @@ FastAPI + PWA on your phone        ntfy digest (optional)
 ```
 
 - **Extraction.** The worker keeps user turns, assistant text, one line per tool call and the first 300 characters of each result, drops subagent chatter and injected context, trims to 80k characters (20% head, 80% tail, since follow-ups cluster at the end), and asks Claude for at most five items, precision over recall. Each item gets a 1–3 word **topic** such as "Payments" or "Code reviews"; the model is shown the project's open items and their topics so it reuses labels instead of inventing near-duplicates.
-- **Dedupe and auto-resolve.** The prompt lists open items; the model never re-adds one and may return `resolved_ids` for items the transcript shows were completed. Ids are validated against that project's open items, and a normalised-title fingerprint catches rewordings.
+- **Dedupe and auto-resolve.** The prompt lists every open item across projects; the model never re-adds one and may return `resolved_ids` for items the transcript shows were completed, whatever project they came from. Ids are validated against open items, and a normalised-title fingerprint catches rewordings.
+- **GitHub verification.** Work often finishes outside any session (a PR merged from the GitHub UI). After each sweep, items that name a PR (`mgs-devops#459`, `owner/repo#12`, `PR #312`) are checked with `gh pr view`. An item whose whole point was that PR ("Merge…", "Watch…", "Re-request review on…") is closed when the PR is merged or closed. An item with a follow-up ("Merge #462, then sync prod") stays open and gets a note that the PR is merged. Needs the `gh` CLI logged in; otherwise this step is skipped. `ccinbox verify` runs it on its own.
 - **Idempotent.** A transcript is processed once per modification time. Failed extractions are retried on the next sweep. One extraction runs at a time.
 - **Inbox.** Cards for triage, or a list grouped by topic with collapsible groups, inline actions, and group actions (mark a whole topic done, snooze it, or dismiss it in one tap). Undo on every action, including group ones. Snoozed items and items closed by later sessions have their own sections.
 
@@ -47,6 +48,7 @@ FastAPI + PWA on your phone        ntfy digest (optional)
 - macOS (launchd for scheduling; the pipeline itself is plain Python and should run on Linux with cron)
 - [Claude Code](https://docs.claude.com/en/docs/claude-code) installed and logged in
 - Python 3.11+ and [uv](https://docs.astral.sh/uv/)
+- Optional: the [GitHub CLI](https://cli.github.com/) (`gh`) logged in, for PR verification
 
 ## Install
 
@@ -150,10 +152,11 @@ Optional. `ccinbox install-launchd` renders three agents into `~/Library/LaunchA
 | Command | Purpose |
 |---|---|
 | `ccinbox process <jsonl> [--force] [--then-sweep]` | extract one transcript |
-| `ccinbox sweep [--since-days N] [--idle-min N] [--limit N] [--debounce S] [--dry-run] [--json]` | process recent transcripts |
+| `ccinbox sweep [--since-days N] [--idle-min N] [--limit N] [--debounce S] [--verify] [--dry-run] [--json]` | process recent transcripts |
 | `ccinbox list [-v] [--all] [--status S] [--json]` | show items |
 | `ccinbox act done\|dismiss\|snooze\|undo\|reopen <id>` | act on an item |
 | `ccinbox categorize [--all]` | label items with topics |
+| `ccinbox verify` | close items whose PR GitHub reports merged or closed |
 | `ccinbox render <jsonl>` / `ccinbox prompt <jsonl>` | inspect what the model sees |
 | `ccinbox stats [--sessions N]` | counts and cost log |
 | `ccinbox serve [--host H] [--port P]` | run the API and PWA |

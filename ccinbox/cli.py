@@ -54,7 +54,7 @@ def cmd_process(args) -> int:
     if args.then_sweep:
         from ccinbox.sweep import sweep
 
-        for r in sweep():
+        for r in sweep(verify_prs=True):
             if r.status in ("processed", "failed"):
                 print(r.summary)
     return 0 if res.status != "failed" else 1
@@ -68,7 +68,7 @@ def cmd_sweep(args) -> int:
         for p in candidate_transcripts(args.since_days, args.idle_min):
             print(p)
         return 0
-    results = sweep(args.since_days, args.idle_min, limit=args.limit, force=args.force, debounce_sec=args.debounce)
+    results = sweep(args.since_days, args.idle_min, limit=args.limit, force=args.force, debounce_sec=args.debounce, verify_prs=args.verify)
     if args.json:
         from ccinbox.sweep import summary
 
@@ -78,6 +78,26 @@ def cmd_sweep(args) -> int:
         print(r.summary)
     cost = sum(r.cost_usd for r in results)
     print(f"{len(results)} candidates, {sum(r.status == 'processed' for r in results)} processed, ${cost:.3f}")
+    if results.verify:
+        print(f"verify: {results.verify.as_dict()}")
+    return 0
+
+
+def cmd_verify(args) -> int:
+    _setup_logging()
+    from ccinbox import db
+    from ccinbox.verify import verify
+
+    conn = db.connect()
+    try:
+        res = verify(conn)
+        for item_id in res.resolved:
+            print(f"closed    #{item_id:<4} {db.get_item(conn, item_id)['title']}")
+        for item_id in res.annotated:
+            print(f"annotated #{item_id:<4} {db.get_item(conn, item_id)['title']}")
+    finally:
+        conn.close()
+    print(f"{res.checked} items mention a PR, {len(res.resolved)} closed, {len(res.annotated)} annotated, {res.errors} lookups failed")
     return 0
 
 
@@ -378,7 +398,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--dry-run", action="store_true", help="list candidates only")
     s.add_argument("--debounce", type=int, default=0, help="skip sessions processed within N seconds")
     s.add_argument("--json", action="store_true", help="print a JSON summary instead of lines")
+    s.add_argument("--verify", action="store_true", help="afterwards close items whose PR is merged or closed (needs gh)")
     s.set_defaults(fn=cmd_sweep)
+
+    s = sub.add_parser("verify", help="close open items whose PR GitHub says is merged or closed (needs gh)")
+    s.set_defaults(fn=cmd_verify)
 
     s = sub.add_parser("ensure-serve", help="start the server detached if nothing listens on its port (SessionStart hook)")
     s.add_argument("--host", default=None)
