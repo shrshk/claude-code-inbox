@@ -143,7 +143,7 @@ Optional. `ccinbox install-launchd` renders three agents into `~/Library/LaunchA
 
 ## Cost and privacy
 
-- One `claude -p` call per processed session on `CCINBOX_MODEL` (default `sonnet`), run with `--setting-sources ""` (no CLAUDE.md, no skills, no hooks, no plugins), `--tools ""`, `--strict-mcp-config`, `--no-session-persistence` and `--max-budget-usd 0.50`. A trimmed 80k-character transcript is roughly 20k input tokens; in practice about $0.15 per extraction on Sonnet, and a session that stays active all day is extracted once per `CCINBOX_DEBOUNCE_SEC`. `ccinbox stats --sessions 20` shows the log; it keeps one row per session (the latest extraction), so lifetime spend is higher than its total. The calls use your Claude Code login and are billed like any other Claude Code usage; there is no API key.
+- One `claude -p` call per processed session on `CCINBOX_MODEL` (default `sonnet`), run with `--setting-sources ""` (no CLAUDE.md, no skills, no hooks, no plugins), `--tools ""`, `--strict-mcp-config`, `--no-session-persistence` and `--max-budget-usd 0.50`. A trimmed 80k-character transcript is roughly 20k input tokens; in practice about $0.15 per extraction on Sonnet, and a session that stays active all day is extracted once per `CCINBOX_DEBOUNCE_SEC`. The calls use your Claude Code login and are billed like any other Claude Code usage; there is no API key.
 - What goes to Claude: the trimmed transcript text and your open item titles. Treat the inbox like the transcripts themselves.
 - The extractor cannot trigger itself: it runs with `CCINBOX_EXTRACTING=1` (the hook exits at once), with no hooks loaded, with no session persisted, and from `~/.cc-inbox/work` so any stray transcript is recognised and skipped.
 
