@@ -14,6 +14,12 @@ Every session leaves loose ends: "merge this after the migration", "ask the revi
   <img src="docs/screens/cards-light.png" width="230" alt="Card view, light">
 </p>
 
+<p align="center">
+  <img src="docs/screens/desktop-dark.png" width="720" alt="Desktop layout">
+</p>
+
+On a phone it is a card stack you swipe. On a laptop the inbox sits beside the snoozed and closed lists, and the arrow keys act on the top card (→ done, ← dismiss, ↑ snooze, Z undo, L list, R refresh).
+
 Everything runs on your Mac. It uses your existing Claude Code login, so there is no API key to manage, and nothing leaves the machine except the trimmed transcript sent to Claude for extraction.
 
 ## How it works
