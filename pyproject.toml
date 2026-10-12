@@ -1,7 +1,7 @@
 [project]
 name = "claude-code-inbox"
 version = "0.1.0"
-description = "Turn finished Claude Code sessions into a swipeable inbox of action items."
+description = "Turn your Claude Code sessions into a swipeable inbox of action items, while they run."
 readme = "README.md"
 license = "MIT"
 authors = [{ name = "Shirish Veerabattini", email = "shirish101k@gmail.com" }]

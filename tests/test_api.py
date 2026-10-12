@@ -44,3 +44,63 @@ def test_token_required_when_set(env, monkeypatch):
     assert client.get("/api/items", headers={"X-Token": "s3cret"}).status_code == 200
     assert client.get("/api/items", headers={"Authorization": "Bearer s3cret"}).status_code == 200
     assert client.get("/").status_code == 200  # the shell is public, the data is not
+
+
+class FakeProc:
+    def __init__(self, out, rc=0, err=""):
+        self.out, self.rc, self.err, self.returncode, self._done = out, rc, err, None, False
+
+    def poll(self):
+        if self._done:
+            self.returncode = self.rc
+        return self.returncode
+
+    def communicate(self):
+        return self.out, self.err
+
+    def finish(self):
+        self._done = True
+
+
+def test_refresh_sweep_runs_once_and_reports(env):
+    from ccinbox import server
+
+    procs = []
+
+    def spawn():
+        p = FakeProc('{"candidates": 3, "processed": 2, "failed": 0, "added": 4, "resolved": 1, "cost_usd": 0.3, "sessions": []}')
+        procs.append(p)
+        return p
+
+    client = TestClient(server.create_app(server.SweepRunner(spawn)))
+    st = client.post("/api/sweep").json()
+    assert st["running"] is True and st["result"] is None
+    assert client.post("/api/sweep").json()["running"] is True and len(procs) == 1  # no second process while running
+    procs[0].finish()
+    st = client.get("/api/sweep").json()
+    assert st["running"] is False and st["result"]["added"] == 4 and st["error"] is None
+    assert client.post("/api/sweep").json()["running"] is True and len(procs) == 2  # can run again afterwards
+
+    bad = server.SweepRunner(lambda: FakeProc("not json", rc=1, err="boom"))
+    bad.start()
+    bad.proc.finish()
+    st = bad.state()
+    assert st["running"] is False and st["result"] is None and "boom" in st["error"]
+
+
+def test_ensure_serve_helpers(env, tmp_path):
+    import socket
+
+    from ccinbox import cli
+
+    (env["home"] / "env").write_text("export CCINBOX_TOKEN='abc'\nCCINBOX_HOST=0.0.0.0\n# comment\nbroken line\n")
+    assert config.load_env_file() == {"CCINBOX_TOKEN": "abc", "CCINBOX_HOST": "0.0.0.0"}
+    srv = socket.socket(); srv.bind(("127.0.0.1", 0)); srv.listen(5)
+    port = srv.getsockname()[1]
+    assert cli.port_open("0.0.0.0", port) and cli.port_open("127.0.0.1", port)
+    srv.close()
+    assert not cli.port_open("127.0.0.1", port)
+    snippet = cli.hooks_snippet(with_stop=True)
+    assert set(snippet["hooks"]) == {"SessionEnd", "Stop", "SessionStart"}
+    assert snippet["hooks"]["SessionStart"][0]["hooks"][0]["command"].endswith("ccinbox ensure-serve")
+    assert "SessionStart" not in cli.hooks_snippet(with_serve=False)["hooks"]

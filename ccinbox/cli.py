@@ -68,7 +68,12 @@ def cmd_sweep(args) -> int:
         for p in candidate_transcripts(args.since_days, args.idle_min):
             print(p)
         return 0
-    results = sweep(args.since_days, args.idle_min, limit=args.limit, force=args.force)
+    results = sweep(args.since_days, args.idle_min, limit=args.limit, force=args.force, debounce_sec=args.debounce)
+    if args.json:
+        from ccinbox.sweep import summary
+
+        print(json.dumps(summary(results)))
+        return 0
     for r in results:
         print(r.summary)
     cost = sum(r.cost_usd for r in results)
@@ -198,6 +203,42 @@ def cmd_serve(args) -> int:
     return 0
 
 
+def port_open(host: str, port: int) -> bool:
+    import socket
+
+    probe = "127.0.0.1" if host in ("0.0.0.0", "", "::") else host
+    try:
+        with socket.create_connection((probe, port), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+
+def cmd_ensure_serve(args) -> int:
+    """Start ``ccinbox serve`` detached, inheriting this process's context (a terminal's, when run as a
+    Claude Code hook), so the server can spawn the extractor. launchd agents cannot on some Macs."""
+    import subprocess
+
+    env = {**os.environ, **config.load_env_file()}
+    host = args.host or env.get("CCINBOX_HOST") or config.HOST
+    port = args.port or int(env.get("CCINBOX_PORT") or config.PORT)
+    if port_open(host, port):
+        return 0
+    config.ensure_dirs()
+    with open(config.HOME / "serve.log", "ab") as logfh:
+        proc = subprocess.Popen(
+            [_ccinbox_bin(), "serve", "--host", host, "--port", str(port)],
+            stdin=subprocess.DEVNULL,
+            stdout=logfh,
+            stderr=logfh,
+            env=env,
+            start_new_session=True,
+            close_fds=True,
+        )
+    print(f"started ccinbox serve on {host}:{port} (pid {proc.pid})")
+    return 0
+
+
 def cmd_digest(args) -> int:
     _setup_logging()
     from ccinbox import db
@@ -223,17 +264,19 @@ def cmd_config(args) -> int:
     return 0
 
 
-def hooks_snippet(with_stop: bool = False) -> dict:
+def hooks_snippet(with_stop: bool = False, with_serve: bool = True) -> dict:
     cmd = f"{_ccinbox_bin()} hook"
     entry = {"hooks": [{"type": "command", "command": cmd, "timeout": 5}]}
     hooks = {"SessionEnd": [entry]}
     if with_stop:
         hooks["Stop"] = [{"hooks": [{"type": "command", "command": cmd, "timeout": 5}]}]
+    if with_serve:
+        hooks["SessionStart"] = [{"hooks": [{"type": "command", "command": f"{_ccinbox_bin()} ensure-serve", "timeout": 5}]}]
     return {"hooks": hooks}
 
 
 def cmd_install_hooks(args) -> int:
-    snippet = hooks_snippet(args.with_stop)
+    snippet = hooks_snippet(args.with_stop, not args.no_serve)
     if not args.write:
         print(json.dumps(snippet, indent=2))
         print("\nMerge this into ~/.claude/settings.json, or rerun with --write.", file=sys.stderr)
@@ -333,7 +376,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--limit", type=int, default=None, help="stop after N extractions")
     s.add_argument("--force", action="store_true")
     s.add_argument("--dry-run", action="store_true", help="list candidates only")
+    s.add_argument("--debounce", type=int, default=0, help="skip sessions processed within N seconds")
+    s.add_argument("--json", action="store_true", help="print a JSON summary instead of lines")
     s.set_defaults(fn=cmd_sweep)
+
+    s = sub.add_parser("ensure-serve", help="start the server detached if nothing listens on its port (SessionStart hook)")
+    s.add_argument("--host", default=None)
+    s.add_argument("--port", type=int, default=None)
+    s.set_defaults(fn=cmd_ensure_serve)
 
     s = sub.add_parser("render", help="print the trimmed transcript the extractor would see")
     s.add_argument("path")
@@ -381,6 +431,7 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("install-hooks", help="print or write the Claude Code hooks entry")
     s.add_argument("--write", action="store_true", help="merge into the settings file")
     s.add_argument("--with-stop", action="store_true", help="also hook Stop (end of every turn, debounced) so long-lived sessions update too")
+    s.add_argument("--no-serve", action="store_true", help="do not add the SessionStart hook that keeps the server running")
     s.add_argument("--settings", default="~/.claude/settings.json")
     s.set_defaults(fn=cmd_install_hooks)
 

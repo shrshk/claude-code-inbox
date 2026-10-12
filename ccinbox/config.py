@@ -52,6 +52,7 @@ def reload() -> None:
     g["SWEEP_DAYS"] = _int("SWEEP_DAYS", 1)
     g["SWEEP_IDLE_MIN"] = _int("SWEEP_IDLE_MIN", 20)
     g["DEBOUNCE_SEC"] = _int("DEBOUNCE_SEC", 900)
+    g["REFRESH_DEBOUNCE_SEC"] = _int("REFRESH_DEBOUNCE_SEC", 300)
     g["SNOOZE_HOUR"] = _int("SNOOZE_HOUR", 9)
     g["RESOLVED_STRIP_DAYS"] = _int("RESOLVED_STRIP_DAYS", 7)
 
@@ -75,3 +76,21 @@ def as_dict() -> dict[str, str]:
 
 
 reload()
+
+
+def load_env_file(path=None) -> dict[str, str]:
+    """Read ``export KEY=value`` lines from ~/.cc-inbox/env (the file install-launchd and ensure-serve use)."""
+    path = Path(path) if path else HOME / "env"
+    out: dict[str, str] = {}
+    try:
+        for line in path.read_text().splitlines():
+            line = line.strip()
+            if line.startswith("export "):
+                line = line[7:]
+            if "=" not in line or line.startswith("#"):
+                continue
+            k, v = line.split("=", 1)
+            out[k.strip()] = v.strip().strip("'\"")
+    except OSError:
+        pass
+    return out

@@ -236,3 +236,8 @@ svg { width: 16px; height: 16px; flex-shrink: 0; }
 .group-head .topic { font-size: 13px; font-weight: 600; letter-spacing: -.01em; }
 .chip.topic-chip { background: var(--green-tint); color: var(--green); }
 .meta .chip { max-width: 45%; }
+
+/* refresh runs a sweep: compact pixel loader in the block head while it extracts */
+.sweep-status { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font-size: 12px; }
+.sweep-status #sweep-elapsed { font-size: 11.5px; color: var(--ink-3); }
+.block-head .sweep-status + .seg { margin-left: 10px; }

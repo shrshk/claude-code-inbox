@@ -57,6 +57,7 @@ def sweep(
     *,
     limit: int | None = None,
     force: bool = False,
+    debounce_sec: int = 0,
     extractor: Extractor | None = None,
 ) -> list[ProcessResult]:
     results: list[ProcessResult] = []
@@ -64,7 +65,7 @@ def sweep(
     for path in candidate_transcripts(since_days, idle_min):
         if limit is not None and processed >= limit:
             break
-        res = process_session(path, extractor, force=force)
+        res = process_session(path, extractor, force=force, debounce_sec=debounce_sec)
         results.append(res)
         if res.status in ("processed", "failed"):
             processed += 1
@@ -75,3 +76,19 @@ def sweep(
         sum(r.status == "failed" for r in results),
     )
     return results
+
+
+def summary(results: list[ProcessResult]) -> dict:
+    return {
+        "candidates": len(results),
+        "processed": sum(r.status == "processed" for r in results),
+        "failed": sum(r.status == "failed" for r in results),
+        "added": sum(len(r.items_added) for r in results),
+        "resolved": sum(len(r.items_resolved) for r in results),
+        "cost_usd": round(sum(r.cost_usd for r in results), 4),
+        "sessions": [
+            {"session_id": r.session_id, "project": r.project, "status": r.status, "added": len(r.items_added), "error": r.error}
+            for r in results
+            if r.status in ("processed", "failed")
+        ],
+    }

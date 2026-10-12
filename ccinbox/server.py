@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+import sys
+import threading
+import time
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -26,8 +33,60 @@ def _authorized(request: Request) -> bool:
     return supplied == token
 
 
-def create_app() -> FastAPI:
+class SweepRunner:
+    """Runs one ``ccinbox sweep`` at a time as a child process and remembers the last result."""
+
+    def __init__(self, spawn=None):
+        self._spawn = spawn or self._default_spawn
+        self._lock = threading.RLock()  # start() reads state() under the same lock
+        self.proc = None
+        self.started_at: float | None = None
+        self.finished_at: float | None = None
+        self.result: dict | None = None
+        self.error: str | None = None
+
+    @staticmethod
+    def _default_spawn():
+        cmd = [sys.executable, "-m", "ccinbox.cli", "sweep", "--idle-min", "0", "--debounce", str(config.REFRESH_DEBOUNCE_SEC), "--json"]
+        return subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=dict(os.environ))
+
+    def start(self) -> dict:
+        with self._lock:
+            self._reap()
+            if self.proc is None:
+                self.proc = self._spawn()
+                self.started_at, self.finished_at, self.result, self.error = time.time(), None, None, None
+            return self.state()
+
+    def _reap(self) -> None:
+        if self.proc is not None and self.proc.poll() is not None:
+            out, err = self.proc.communicate()
+            self.finished_at = time.time()
+            try:
+                self.result = json.loads(out.strip().splitlines()[-1]) if out and out.strip() else None
+            except (ValueError, IndexError):
+                self.result = None
+            if self.proc.returncode != 0 or self.result is None:
+                self.error = (err or out or "").strip()[-300:] or f"sweep exited {self.proc.returncode}"
+            self.proc = None
+
+    def state(self) -> dict:
+        with self._lock:
+            self._reap()
+            running = self.proc is not None
+            return {
+                "running": running,
+                "started_at": self.started_at,
+                "elapsed": round(time.time() - self.started_at, 1) if self.started_at and running else None,
+                "finished_at": self.finished_at,
+                "result": self.result,
+                "error": self.error,
+            }
+
+
+def create_app(sweeper: SweepRunner | None = None) -> FastAPI:
     app = FastAPI(title="Claude Code Inbox", docs_url=None, redoc_url=None)
+    runner = sweeper or SweepRunner()
 
     @app.middleware("http")
     async def require_token(request: Request, call_next):
@@ -74,6 +133,14 @@ def create_app() -> FastAPI:
         if row is None:
             raise HTTPException(404, "no such item")
         return db.row_to_dict(row)
+
+    @app.post("/api/sweep")
+    def start_sweep():
+        return runner.start()
+
+    @app.get("/api/sweep")
+    def sweep_state():
+        return runner.state()
 
     @app.get("/api/sessions")
     def list_sessions(limit: int = 50):

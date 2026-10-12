@@ -310,8 +310,37 @@
     try { localStorage.setItem("ccinboxView", state.view); } catch (e) { /* ignore */ }
     render();
   }));
+  // Refresh = run a sweep (extract new turns from every changed session), then reload the inbox.
+  let sweeping = false, sweepTimer = null;
+  function setSweepStatus(on, elapsed) {
+    $("#sweep-status").classList.toggle("hidden", !on);
+    $("#refresh").classList.toggle("spinning", on);
+    if (on) $("#sweep-elapsed").textContent = (elapsed ?? 0).toFixed(1) + "s";
+  }
+  async function runSweep() {
+    if (sweeping) return;
+    sweeping = true;
+    const t0 = performance.now();
+    try {
+      let st = await api("/api/sweep", { method: "POST", body: "{}" });
+      setSweepStatus(true, 0);
+      sweepTimer = setInterval(() => setSweepStatus(true, (performance.now() - t0) / 1000), 100);
+      while (st.running) { await sleep(1500); st = await api("/api/sweep"); }
+      clearInterval(sweepTimer); setSweepStatus(false);
+      await load({ quiet: true });
+      if (st.error) toast("Sweep failed: " + st.error.slice(0, 120), false);
+      else if (st.result) {
+        const r = st.result;
+        toast(r.processed ? `${r.added} new, ${r.resolved} closed · ${r.processed} session${r.processed === 1 ? "" : "s"}, $${r.cost_usd.toFixed(2)}` : "Nothing new since last check", false);
+      }
+    } catch (err) {
+      clearInterval(sweepTimer); setSweepStatus(false);
+      if (err.message !== "unauthorized") toast("Refresh failed: " + err.message, false);
+      await load({ quiet: true });
+    } finally { sweeping = false; }
+  }
   $("#undo").addEventListener("click", undo);
-  $("#refresh").addEventListener("click", () => load({ quiet: true }));
+  $("#refresh").addEventListener("click", runSweep);
   document.querySelectorAll(".actions button").forEach((b) => b.addEventListener("click", () => {
     const item = state.items[0]; if (!item) return;
     const card = $("#deck .card:last-child"); if (card) flyOut(card, b.dataset.action);
