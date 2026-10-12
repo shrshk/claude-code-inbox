@@ -228,7 +228,7 @@ def hooks_snippet(with_stop: bool = False) -> dict:
     entry = {"hooks": [{"type": "command", "command": cmd, "timeout": 5}]}
     hooks = {"SessionEnd": [entry]}
     if with_stop:
-        hooks["Stop"] = [{"hooks": [{"type": "command", "command": cmd, "async": True}]}]
+        hooks["Stop"] = [{"hooks": [{"type": "command", "command": cmd, "timeout": 5}]}]
     return {"hooks": hooks}
 
 
@@ -380,7 +380,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("install-hooks", help="print or write the Claude Code hooks entry")
     s.add_argument("--write", action="store_true", help="merge into the settings file")
-    s.add_argument("--with-stop", action="store_true", help="also hook Stop (debounced) for long-lived sessions")
+    s.add_argument("--with-stop", action="store_true", help="also hook Stop (end of every turn, debounced) so long-lived sessions update too")
     s.add_argument("--settings", default="~/.claude/settings.json")
     s.set_defaults(fn=cmd_install_hooks)
 

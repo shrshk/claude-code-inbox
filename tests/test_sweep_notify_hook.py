@@ -62,7 +62,8 @@ def test_hook_spawns_detached_worker(env, monkeypatch):
     payload["hook_event_name"] = "Stop"
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload)))
     hook.main()
-    assert spawned["args"][-2:] == ["--debounce", str(config.DEBOUNCE_SEC)]
+    assert spawned["args"][-4:] == ["process", "/tmp/t.jsonl", "--then-sweep", "--debounce", str(config.DEBOUNCE_SEC)][-4:]
+    assert "--then-sweep" in spawned["args"] and spawned["args"][-1] == str(config.DEBOUNCE_SEC)
 
     spawned.clear()
     monkeypatch.setenv("CCINBOX_EXTRACTING", "1")

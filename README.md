@@ -73,9 +73,7 @@ ccinbox install-hooks           # prints the settings entry
 ccinbox install-hooks --write   # merges it into ~/.claude/settings.json (backup written first)
 ```
 
-The `SessionEnd` hook spawns a detached worker and returns at once, well inside Claude Code's 1.5 s hook budget. The worker extracts the session that just ended, then also processes any other transcript that has been idle for 10 minutes, so long-running sessions you never exit still get picked up.
-
-`--with-stop` additionally hooks `Stop` (every turn), debounced to one extraction per 30 minutes per session. Usually unnecessary.
+Use `--with-stop` for both hooks; it is the recommended setup. Each hook spawns a detached worker and returns at once, well inside Claude Code's hook budget. `SessionEnd` alone only extracts when a session ends, which is too late for a session you keep open all day.
 
 ## Phone
 
@@ -99,10 +97,15 @@ Never expose the port to the internet. The token is a single shared secret with 
 
 ## When do items show up?
 
-When a session ends. The hook worker extracts that session, then sweeps any other transcript that has
-been idle for 10 minutes, so long-running sessions are covered too. Tap the refresh button in the app
-(or reopen it; it refreshes when it comes to the foreground) to pull the new items in. That is the
-whole loop; no timer is needed.
+Within about 15 minutes of activity, with both hooks installed:
+
+- **Stop** fires every time Claude finishes a reply. The worker extracts that session at most once per
+  `CCINBOX_DEBOUNCE_SEC` (15 minutes), so a session you keep open all day still updates as you go.
+- **SessionEnd** fires when you exit, `/clear` or `/resume`, and catches the final turns.
+- Either worker also sweeps any other transcript idle for 10 minutes.
+
+Tap the refresh button in the app, or just reopen it (it refreshes when it comes to the foreground),
+to pull new items in. No timer is needed.
 
 ## Scheduling (launchd)
 
@@ -158,7 +161,7 @@ Every setting is an environment variable `CCINBOX_<NAME>`; `ccinbox config` prin
 | `MIN_USER_TURNS` | `2` | shorter sessions are skipped without a model call |
 | `MAX_ITEMS` | `5` | per session |
 | `SWEEP_DAYS` / `SWEEP_IDLE_MIN` | `1` / `20` | sweep window and idle gate |
-| `DEBOUNCE_SEC` | `1800` | Stop-hook debounce |
+| `DEBOUNCE_SEC` | `900` | Stop-hook debounce: one extraction per session per interval |
 | `SNOOZE_HOUR` | `9` | local hour snoozed items return |
 | `RESOLVED_STRIP_DAYS` | `7` | how long auto-closed items stay listed |
 | `HOST` / `PORT` / `TOKEN` | `127.0.0.1` / `8787` / empty | server |

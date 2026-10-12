@@ -29,13 +29,12 @@ def main(argv: list[str] | None = None) -> int:
     if not isinstance(path, str) or not path:
         return 0
     event = str(payload.get("hook_event_name") or "")
-    args = [sys.executable, "-m", "ccinbox.cli", "process", path]
+    # The worker inherits the terminal's context (login, file access), which a launchd agent may lack,
+    # so every hook also picks up other idle transcripts. Stop fires after every turn, so it is debounced:
+    # one extraction per DEBOUNCE_SEC per session.
+    args = [sys.executable, "-m", "ccinbox.cli", "process", path, "--then-sweep"]
     if event == "Stop":
         args += ["--debounce", str(config.DEBOUNCE_SEC)]
-    else:
-        # The worker inherits the terminal's context (login, file access), which a launchd agent may lack,
-        # so every session end also picks up other idle transcripts the sweep agent could not.
-        args.append("--then-sweep")
     config.ensure_dirs()
     with open(config.LOG_PATH, "ab") as logfh:
         proc = subprocess.Popen(

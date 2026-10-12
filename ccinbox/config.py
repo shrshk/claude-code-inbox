@@ -51,7 +51,7 @@ def reload() -> None:
     # scheduling
     g["SWEEP_DAYS"] = _int("SWEEP_DAYS", 1)
     g["SWEEP_IDLE_MIN"] = _int("SWEEP_IDLE_MIN", 20)
-    g["DEBOUNCE_SEC"] = _int("DEBOUNCE_SEC", 1800)
+    g["DEBOUNCE_SEC"] = _int("DEBOUNCE_SEC", 900)
     g["SNOOZE_HOUR"] = _int("SNOOZE_HOUR", 9)
     g["RESOLVED_STRIP_DAYS"] = _int("RESOLVED_STRIP_DAYS", 7)
 
