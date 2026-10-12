@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.ccinbox.sweep</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__CCINBOX_BIN__</string>
+        <string>sweep</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key><string>__PATH__</string>
+        <key>HOME</key><string>__HOME__</string>
+        <key>CCINBOX_CLAUDE_BIN</key><string>__CLAUDE_BIN__</string>
+__EXTRA_ENV__
+    </dict>
+    <key>StartInterval</key><integer>900</integer>
+    <key>RunAtLoad</key><false/>
+    <key>StandardOutPath</key><string>__LOG_DIR__/sweep.log</string>
+    <key>StandardErrorPath</key><string>__LOG_DIR__/sweep.log</string>
+</dict>
+</plist>

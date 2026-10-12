@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          { "type": "command", "command": "__CCINBOX_BIN__ hook", "timeout": 5 }
+        ]
+      }
+    ]
+  }
+}

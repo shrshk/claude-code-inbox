@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.ccinbox.digest</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__CCINBOX_BIN__</string>
+        <string>digest</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key><string>__PATH__</string>
+        <key>HOME</key><string>__HOME__</string>
+        <key>CCINBOX_CLAUDE_BIN</key><string>__CLAUDE_BIN__</string>
+__EXTRA_ENV__
+    </dict>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    </array>
+    <key>RunAtLoad</key><false/>
+    <key>StandardOutPath</key><string>__LOG_DIR__/digest.log</string>
+    <key>StandardErrorPath</key><string>__LOG_DIR__/digest.log</string>
+</dict>
+</plist>
