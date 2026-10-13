@@ -130,8 +130,10 @@
     const list = $("#list"); list.innerHTML = "";
     const groups = new Map();
     for (const it of state.items) { const k = it.topic || UNSORTED; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(it); }
-    // Alphabetical, Unsorted last. Not by size: a group that shrinks after an action must not jump elsewhere.
-    const keys = [...groups.keys()].sort((a, b) => (a === UNSORTED) - (b === UNSORTED) || a.localeCompare(b, undefined, { sensitivity: "base" }));
+    // Newest activity first: a group sorts by its most recent item (items arrive newest first from the API).
+    // Unsorted last. Not by size, so a group that shrinks after an action does not jump around.
+    const newest = (k) => groups.get(k).reduce((m, it) => (it.created_at > m ? it.created_at : m), "");
+    const keys = [...groups.keys()].sort((a, b) => (a === UNSORTED) - (b === UNSORTED) || (newest(b) > newest(a) ? 1 : newest(b) < newest(a) ? -1 : a.localeCompare(b)));
     let n = 0;
     for (const topic of keys) {
       const items = groups.get(topic);
