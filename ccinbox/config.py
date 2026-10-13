@@ -62,6 +62,8 @@ def reload() -> None:
     g["TOKEN"] = _get("TOKEN", "")
     g["NTFY_URL"] = _get("NTFY_URL", "https://ntfy.sh").rstrip("/")
     g["NTFY_TOPIC"] = _get("NTFY_TOPIC", "")
+    g["JIRA_URL"] = _get("JIRA_URL", "").rstrip("/")  # e.g. https://yourco.atlassian.net; empty = no Jira links
+    g["GITHUB_URL"] = _get("GITHUB_URL", "https://github.com").rstrip("/")
     g["WEB_DIR"] = Path(_get("WEB_DIR", Path(__file__).resolve().parent.parent / "web")).expanduser()
 
 

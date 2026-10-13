@@ -8,6 +8,8 @@ def test_pr_refs_parse_forms():
     assert [r.slug for r in refs] == ["acme/mgs-devops#459", "acme/api#12", "acme/api#7", "other/repo#3"]
     assert pr_refs("PR #12", None, {}) == []  # no repo to resolve a bare number against
     assert pr_refs("tools/foo#5", None, {}) == [PRRef("tools", "foo", 5)]
+    more = pr_refs("approve #6717 and mgs-cicd #482; ticket DART-9403; item #3 of 5", "/x", cache)
+    assert [r.slug for r in more] == ["acme/api#6717", "acme/mgs-cicd#482"]  # #3 is too short, DART-9403 is Jira
 
 
 def test_verify_closes_settled_items_and_annotates_follow_ups(env, conn):

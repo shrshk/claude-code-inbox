@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from ccinbox import config, db
+from ccinbox.links import attach_links
 
 
 class ActionBody(BaseModel):
@@ -112,9 +113,9 @@ def create_app(sweeper: SweepRunner | None = None) -> FastAPI:
     def list_items():
         conn = db.connect()
         try:
-            items = [db.row_to_dict(r) for r in db.inbox(conn)]
-            snoozed = [db.row_to_dict(r) for r in db.snoozed_items(conn)]
-            resolved = [db.row_to_dict(r) for r in db.recently_resolved(conn)]
+            items = attach_links([db.row_to_dict(r) for r in db.inbox(conn)])
+            snoozed = attach_links([db.row_to_dict(r) for r in db.snoozed_items(conn)])
+            resolved = attach_links([db.row_to_dict(r) for r in db.recently_resolved(conn)])
         finally:
             conn.close()
         return {

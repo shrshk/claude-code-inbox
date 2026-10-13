@@ -39,6 +39,7 @@ FastAPI + PWA on your phone        ntfy digest (optional)
 
 - **Extraction.** The worker keeps user turns, assistant text, one line per tool call and the first 300 characters of each result, drops subagent chatter and injected context, trims to 80k characters (20% head, 80% tail, since follow-ups cluster at the end), and asks Claude for at most five items, precision over recall. Each item gets a 1–3 word **topic** such as "Payments" or "Code reviews"; the model is shown the project's open items and their topics so it reuses labels instead of inventing near-duplicates.
 - **Dedupe and auto-resolve.** The prompt lists every open item across projects; the model never re-adds one and may return `resolved_ids` for items the transcript shows were completed, whatever project they came from. Ids are validated against open items, and a normalised-title fingerprint catches rewordings.
+- **Links.** PR references (`mgs-devops#459`, `owner/repo#12`, `PR #312`), Jira keys (`DART-9403`, with `CCINBOX_JIRA_URL` set) and plain URLs in an item become links in the card and the list, so the thing to act on is one tap away.
 - **GitHub verification.** Work often finishes outside any session (a PR merged from the GitHub UI). After each sweep, items that name a PR (`mgs-devops#459`, `owner/repo#12`, `PR #312`) are checked with `gh pr view`. An item whose whole point was that PR ("Merge…", "Watch…", "Re-request review on…") is closed when the PR is merged or closed. An item with a follow-up ("Merge #462, then sync prod") stays open and gets a note that the PR is merged. Needs the `gh` CLI logged in; otherwise this step is skipped. `ccinbox verify` runs it on its own.
 - **Idempotent.** A transcript is processed once per modification time. Failed extractions are retried on the next sweep. One extraction runs at a time.
 - **Inbox.** Cards for triage, or a list grouped by topic with collapsible groups, inline actions, and group actions (mark a whole topic done, snooze it, or dismiss it in one tap). Undo on every action, including group ones. Snoozed items and items closed by later sessions have their own sections.
@@ -187,6 +188,8 @@ Every setting is an environment variable `CCINBOX_<NAME>`; `ccinbox config` prin
 | `RESOLVED_STRIP_DAYS` | `7` | how long auto-closed items stay listed |
 | `HOST` / `PORT` / `TOKEN` | `127.0.0.1` / `8787` / empty | server |
 | `NTFY_URL` / `NTFY_TOPIC` | `https://ntfy.sh` / empty | digest |
+| `JIRA_URL` | empty | Jira site; keys like `DART-9403` become links when set |
+| `GITHUB_URL` | `https://github.com` | base for PR links |
 
 ## Layout
 

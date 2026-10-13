@@ -15,6 +15,16 @@
   }
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // Escape, then turn the server-detected link texts (PRs, Jira keys, URLs) into anchors. Longest text first
+  // so "owner/repo#12" is not broken by "repo#12".
+  function linkify(text, links) {
+    let html = esc(text);
+    for (const l of [...(links || [])].sort((x, y) => y.text.length - x.text.length)) {
+      const t = esc(l.text);
+      html = html.split(t).join(`<a class="lnk lnk-${l.kind}" href="${esc(l.url)}" target="_blank" rel="noopener">${t}</a>`);
+    }
+    return html;
+  }
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const icon = (id) => `<svg><use href="#${id}"/></svg>`;
   const label = (a) => ({ done: "Done", dismiss: "Dismissed", snooze: "Snoozed", reopen: "Back in the inbox" }[a] || a);
@@ -100,13 +110,14 @@
     el.style.animationDelay = `${depth * 60}ms`;
     el.innerHTML = `
       <div class="meta"><span class="chip">${esc(item.project)}</span>${item.topic ? `<span class="chip topic-chip">${esc(item.topic)}</span>` : ""}<span class="when tab">${fmtDate(item.created_at)}</span></div>
-      <h2>${esc(item.title)}</h2>
-      <p class="details clamp">${esc(item.details || "")}</p>
+      <h2>${linkify(item.title, item.links)}</h2>
+      <p class="details clamp">${linkify(item.details || "", item.links)}</p>
       ${item.session_title ? `<div class="session">from <b>“${esc(item.session_title)}”</b></div>` : `<div class="session">session <b class="mono">${esc((item.session_id || "").slice(0, 8))}</b></div>`}
       <span class="intent-pill"></span>
       <div class="wash"></div>`;
     const d = el.querySelector(".details");
-    d.addEventListener("click", (e) => { e.stopPropagation(); d.classList.toggle("clamp"); });
+    d.addEventListener("click", (e) => { e.stopPropagation(); if (!e.target.closest("a")) d.classList.toggle("clamp"); });
+    el.querySelectorAll("a").forEach((l) => l.addEventListener("click", (e) => e.stopPropagation()));
     return el;
   }
 
@@ -152,7 +163,8 @@
             <span class="chev">${icon("i-chev")}</span>
           </button>
           <div class="row-body"><div><div class="row-inner"><span class="vline"></span><div class="row-details">
-            ${it.details ? `<div>${esc(it.details)}</div>` : ""}
+            ${it.details ? `<div>${linkify(it.details, it.links)}</div>` : ""}
+            ${it.links && it.links.length ? `<div class="linkbar">${it.links.map((l) => `<a class="lnk chip-link lnk-${l.kind}" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.text)}</a>`).join("")}</div>` : ""}
             <div class="k"><span>Project</span><span>${esc(it.project)}</span></div>
             ${it.session_title ? `<div class="k"><span>From session</span><span>“${esc(it.session_title)}”</span></div>` : ""}
             <div class="row-actions">
@@ -192,7 +204,7 @@
           <span class="chev">${icon("i-chev")}</span>
         </button>
         <div class="row-body"><div><div class="row-inner"><span class="vline"></span><div class="row-details">
-          ${r.details ? `<div>${esc(r.details)}</div>` : ""}
+          ${r.details ? `<div>${linkify(r.details, r.links)}</div>` : ""}
           ${facts}
           <div class="k"><span>Created</span><span>${esc(fmtDate(r.created_at))}</span></div>
           <button type="button" class="ghost" data-reopen="${r.id}">${icon("i-undo")}Back to inbox</button>
@@ -228,7 +240,7 @@
     const pill = card.querySelector(".intent-pill");
     const reset = () => { card.style.transition = ""; card.style.transform = ""; card.dataset.intent = ""; card.style.setProperty("--wash", 0); };
     card.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0 || state.busy) return;
+      if (e.button !== 0 || state.busy || e.target.closest("a")) return;
       dragging = true; startX = e.clientX; startY = e.clientY; dx = dy = 0;
       card.style.animation = "none";
       if (card.setPointerCapture) card.setPointerCapture(e.pointerId);

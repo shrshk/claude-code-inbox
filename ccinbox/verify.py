@@ -19,12 +19,15 @@ from ccinbox import db
 
 log = logging.getLogger("ccinbox.verify")
 
-# "mgs-devops#459", "owner/repo#12", "PR #312", "PR 452", "pull/88"; bare "#88" only when a repo hint is nearby
-_PR_RE = re.compile(
-    r"(?:(?P<repo>[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?)#(?P<n1>\d+))"
+# "mgs-devops#459", "mgs-cicd #482", "owner/repo#12", "PR #312", "PR 452", "pull/88", and a bare "#6717"
+# (two or more digits, resolved against the session's own repo)
+PR_RE = re.compile(
+    r"(?:(?P<repo>[A-Za-z0-9_.]*(?:/|-)[A-Za-z0-9_.-]*) ?#(?P<n1>\d+))"
     r"|(?:\bPR\s*#?(?P<n2>\d+))"
     r"|(?:pull/(?P<n3>\d+))"
+    r"|(?:(?<![\w/#])#(?P<n4>\d{2,6})\b)"
 )
+_PR_RE = PR_RE
 # items whose whole point is the PR itself; once it is merged or closed they are done
 _SETTLED_BY_MERGE = re.compile(
     r"^(merge|land|ship|watch|monitor|re-?request review|request review|reply|respond|address|take .* out of draft|"
@@ -107,7 +110,7 @@ def pr_refs(text: str, cwd: str | None, cache: dict) -> list[PRRef]:
             else:
                 continue
         else:
-            num = int(m.group("n2") or m.group("n3"))
+            num = int(m.group("n2") or m.group("n3") or m.group("n4"))
             if not origin or not origin[1]:
                 continue
             owner, repo = origin
