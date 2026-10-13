@@ -116,15 +116,18 @@ Never expose the port to the internet. The token is a single shared secret with 
 
 Three ways, all from live sessions:
 
-- **Refresh button.** Tap it on the phone and the server sweeps every session that changed since its
-  last extraction, shows a loader with elapsed time, then reloads the inbox and reports what it found.
-  Sessions extracted in the last `CCINBOX_REFRESH_DEBOUNCE_SEC` (5 minutes) are skipped, so repeated
-  taps are cheap.
+- **Refresh button.** Tap it on the phone and the server sweeps the sessions that are running right
+  now (Claude Code registers each one in `~/.claude/sessions/`), skips any extracted in the last
+  `CCINBOX_REFRESH_DEBOUNCE_SEC` (5 minutes) or unchanged since, shows a loader with elapsed time, then
+  reloads the inbox and reports what it found. Ended sessions are not touched; their final turns came in
+  through SessionEnd. Each refresh also runs the GitHub verification pass. `ccinbox live` lists what
+  counts as live.
 - **Stop hook.** Every time Claude finishes a reply, the session is extracted in the background, at most
   once per `CCINBOX_DEBOUNCE_SEC` (15 minutes). Reopening the app refreshes the list.
 - **SessionEnd hook.** When you exit, `/clear` or `/resume`, the final turns are picked up.
 
-Both hook workers also sweep any other transcript idle for 10 minutes. No timer is needed.
+Both hook workers also sweep the other live sessions. Nothing outside live sessions is read unless you
+run `ccinbox sweep` yourself or load the launchd timer.
 
 ## Scheduling (launchd)
 
@@ -153,7 +156,8 @@ Optional. `ccinbox install-launchd` renders three agents into `~/Library/LaunchA
 | Command | Purpose |
 |---|---|
 | `ccinbox process <jsonl> [--force] [--then-sweep]` | extract one transcript |
-| `ccinbox sweep [--since-days N] [--idle-min N] [--limit N] [--debounce S] [--verify] [--dry-run] [--json]` | process recent transcripts |
+| `ccinbox sweep [--live] [--since-days N] [--idle-min N] [--limit N] [--debounce S] [--verify] [--dry-run] [--json]` | process live (or recent) transcripts |
+| `ccinbox live` | list the sessions running right now |
 | `ccinbox list [-v] [--all] [--status S] [--json]` | show items |
 | `ccinbox act done\|dismiss\|snooze\|undo\|reopen <id>` | act on an item |
 | `ccinbox categorize [--all]` | label items with topics |
@@ -181,7 +185,9 @@ Every setting is an environment variable `CCINBOX_<NAME>`; `ccinbox config` prin
 | `TOOL_RESULT_CHARS` / `TOOL_USE_CHARS` | `300` / `200` | per-tool abbreviation |
 | `MIN_USER_TURNS` | `2` | shorter sessions are skipped without a model call |
 | `MAX_ITEMS` | `5` | per session |
-| `SWEEP_DAYS` / `SWEEP_IDLE_MIN` | `1` / `20` | sweep window and idle gate |
+| `SWEEP_DAYS` / `SWEEP_IDLE_MIN` | `1` / `20` | window and idle gate for a non-live sweep |
+| `SESSIONS_DIR` | `~/.claude/sessions` | Claude Code's registry of running sessions |
+| `LIVE_FALLBACK_MIN` | `30` | without a registry, transcripts modified this recently count as live |
 | `DEBOUNCE_SEC` | `900` | Stop-hook debounce: one extraction per session per interval |
 | `REFRESH_DEBOUNCE_SEC` | `300` | refresh button skips sessions extracted this recently |
 | `SNOOZE_HOUR` | `9` | local hour snoozed items return |

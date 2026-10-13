@@ -66,10 +66,17 @@ def sweep(
     debounce_sec: int = 0,
     extractor: Extractor | None = None,
     verify_prs: bool = False,
+    live_only: bool = False,
 ) -> SweepResults:
     results = SweepResults()
     processed = 0
-    for path in candidate_transcripts(since_days, idle_min):
+    if live_only:
+        from ccinbox.live import live_transcripts
+
+        candidates = live_transcripts()
+    else:
+        candidates = candidate_transcripts(since_days, idle_min)
+    for path in candidates:
         if limit is not None and processed >= limit:
             break
         res = process_session(path, extractor, force=force, debounce_sec=debounce_sec)

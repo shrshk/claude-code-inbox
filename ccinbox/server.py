@@ -54,7 +54,7 @@ class SweepRunner:
 
     @staticmethod
     def _default_spawn():
-        cmd = [sys.executable, "-m", "ccinbox.cli", "sweep", "--idle-min", "0", "--debounce", str(config.REFRESH_DEBOUNCE_SEC), "--json", "--verify"]
+        cmd = [sys.executable, "-m", "ccinbox.cli", "sweep", "--live", "--debounce", str(config.REFRESH_DEBOUNCE_SEC), "--json", "--verify"]
         return subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=dict(os.environ))
 
     def start(self) -> dict:

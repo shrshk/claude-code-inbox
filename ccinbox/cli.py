@@ -54,7 +54,7 @@ def cmd_process(args) -> int:
     if args.then_sweep:
         from ccinbox.sweep import sweep
 
-        for r in sweep(verify_prs=True):
+        for r in sweep(verify_prs=True, live_only=True):
             if r.status in ("processed", "failed"):
                 print(r.summary)
     return 0 if res.status != "failed" else 1
@@ -65,10 +65,16 @@ def cmd_sweep(args) -> int:
     from ccinbox.sweep import candidate_transcripts, sweep
 
     if args.dry_run:
-        for p in candidate_transcripts(args.since_days, args.idle_min):
-            print(p)
+        if args.live:
+            from ccinbox.live import live_transcripts
+
+            for p in live_transcripts():
+                print(p)
+        else:
+            for p in candidate_transcripts(args.since_days, args.idle_min):
+                print(p)
         return 0
-    results = sweep(args.since_days, args.idle_min, limit=args.limit, force=args.force, debounce_sec=args.debounce, verify_prs=args.verify)
+    results = sweep(args.since_days, args.idle_min, limit=args.limit, force=args.force, debounce_sec=args.debounce, verify_prs=args.verify, live_only=args.live)
     if args.json:
         from ccinbox.sweep import summary
 
@@ -80,6 +86,16 @@ def cmd_sweep(args) -> int:
     print(f"{len(results)} candidates, {sum(r.status == 'processed' for r in results)} processed, ${cost:.3f}")
     if results.verify:
         print(f"verify: {results.verify.as_dict()}")
+    return 0
+
+
+def cmd_live(args) -> int:
+    from ccinbox.live import live_sessions
+
+    rows = live_sessions()
+    for s in rows:
+        print(f"{s.pid:<7} {s.session_id[:8]} {s.status:<8} {Path(s.cwd).name:<28} {s.name[:40]}{'' if s.exists else '  (no transcript yet)'}")
+    print(f"{len(rows)} live session{'s' if len(rows) != 1 else ''}")
     return 0
 
 
@@ -399,7 +415,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--debounce", type=int, default=0, help="skip sessions processed within N seconds")
     s.add_argument("--json", action="store_true", help="print a JSON summary instead of lines")
     s.add_argument("--verify", action="store_true", help="afterwards close items whose PR is merged or closed (needs gh)")
+    s.add_argument("--live", action="store_true", help="only sessions running right now (~/.claude/sessions), ignoring the window and idle gate")
     s.set_defaults(fn=cmd_sweep)
+
+    s = sub.add_parser("live", help="list the Claude Code sessions running right now")
+    s.set_defaults(fn=cmd_live)
 
     s = sub.add_parser("verify", help="close open items whose PR GitHub says is merged or closed (needs gh)")
     s.set_defaults(fn=cmd_verify)

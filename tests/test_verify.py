@@ -10,6 +10,8 @@ def test_pr_refs_parse_forms():
     assert pr_refs("tools/foo#5", None, {}) == [PRRef("tools", "foo", 5)]
     more = pr_refs("approve #6717 and mgs-cicd #482; ticket DART-9403; item #3 of 5", "/x", cache)
     assert [r.slug for r in more] == ["acme/api#6717", "acme/mgs-cicd#482"]  # #3 is too short, DART-9403 is Jira
+    tricky = pr_refs("(MG-Stover/mgs-dart-backend#2357 is merged) FE #2357, BE #6716, DeFi (#6771/#2398)", "/x", cache)
+    assert [r.slug for r in tricky] == ["MG-Stover/mgs-dart-backend#2357", "acme/api#2357", "acme/api#6716", "acme/api#6771"]
 
 
 def test_verify_closes_settled_items_and_annotates_follow_ups(env, conn):

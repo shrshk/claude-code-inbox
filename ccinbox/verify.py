@@ -22,9 +22,10 @@ log = logging.getLogger("ccinbox.verify")
 # "mgs-devops#459", "mgs-cicd #482", "owner/repo#12", "PR #312", "PR 452", "pull/88", and a bare "#6717"
 # (two or more digits, resolved against the session's own repo)
 PR_RE = re.compile(
-    r"(?:(?P<repo>[A-Za-z0-9_.]*(?:/|-)[A-Za-z0-9_.-]*) ?#(?P<n1>\d+))"
-    r"|(?:\bPR\s*#?(?P<n2>\d+))"
-    r"|(?:pull/(?P<n3>\d+))"
+    r"(?:(?<![\w/])(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+|[A-Za-z0-9_.-]+)#(?P<n1>\d+)\b)"  # owner/repo#12, repo#12
+    r"|(?:(?<![\w/])(?P<repo2>[A-Za-z0-9_.]+-[A-Za-z0-9_.-]+) #(?P<n5>\d+)\b)"  # mgs-cicd #482 (hyphenated name only)
+    r"|(?:\bPR\s*#?(?P<n2>\d+)\b)"
+    r"|(?:pull/(?P<n3>\d+)\b)"
     r"|(?:(?<![\w/#])#(?P<n4>\d{2,6})\b)"
 )
 _PR_RE = PR_RE
@@ -101,8 +102,8 @@ def pr_refs(text: str, cwd: str | None, cache: dict) -> list[PRRef]:
     refs: list[PRRef] = []
     origin = _origin_owner_repo(cwd, cache)
     for m in _PR_RE.finditer(text):
-        if m.group("repo"):
-            repo, num = m.group("repo"), int(m.group("n1"))
+        if m.group("repo") or m.group("repo2"):
+            repo, num = (m.group("repo") or m.group("repo2")), int(m.group("n1") or m.group("n5"))
             if "/" in repo:
                 owner, repo = repo.split("/", 1)
             elif origin:

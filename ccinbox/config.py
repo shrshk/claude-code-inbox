@@ -32,6 +32,7 @@ def reload() -> None:
     g["LOG_PATH"] = Path(_get("LOG", home / "ccinbox.log")).expanduser()
     g["LOCK_PATH"] = home / "extract.lock"
     g["PROJECTS_DIR"] = Path(_get("PROJECTS_DIR", Path.home() / ".claude" / "projects")).expanduser()
+    g["SESSIONS_DIR"] = Path(_get("SESSIONS_DIR", Path.home() / ".claude" / "sessions")).expanduser()
 
     # extractor
     g["CLAUDE_BIN"] = _get("CLAUDE_BIN", "claude")
@@ -51,6 +52,7 @@ def reload() -> None:
     # scheduling
     g["SWEEP_DAYS"] = _int("SWEEP_DAYS", 1)
     g["SWEEP_IDLE_MIN"] = _int("SWEEP_IDLE_MIN", 20)
+    g["LIVE_FALLBACK_MIN"] = _int("LIVE_FALLBACK_MIN", 30)
     g["DEBOUNCE_SEC"] = _int("DEBOUNCE_SEC", 900)
     g["REFRESH_DEBOUNCE_SEC"] = _int("REFRESH_DEBOUNCE_SEC", 300)
     g["SNOOZE_HOUR"] = _int("SNOOZE_HOUR", 9)
